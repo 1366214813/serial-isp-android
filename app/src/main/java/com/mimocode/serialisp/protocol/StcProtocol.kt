@@ -66,7 +66,7 @@ class StcProtocol(serial: SerialPortManager, listener: ProtocolListener) : BaseP
                     serial.setParameters(handshakeBaud, Parity.EVEN)
                     delay(10)
                     // 发送确认包
-                    val ackPkt = buildPkt(0x6A, byteArrayOf(0x80, 0x00, 0xF1))
+                    val ackPkt = buildPkt(0x6A, byteArrayOf(0x80.toByte(), 0x00, 0xF1.toByte()))
                     clearRxBuf()
                     serial.write(ackPkt)
                     delay(100)

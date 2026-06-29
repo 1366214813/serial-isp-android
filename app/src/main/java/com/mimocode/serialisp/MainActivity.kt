@@ -1,6 +1,5 @@
 package com.mimocode.serialisp
 
-import android.app.Activity
 import android.content.Intent
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
@@ -21,9 +20,7 @@ import com.mimocode.serialisp.ui.LogAdapter
 import com.mimocode.serialisp.usb.Parity
 import com.mimocode.serialisp.usb.SerialPortManager
 import com.mimocode.serialisp.usb.UsbDeviceManager
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
@@ -227,9 +224,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun log(message: String, level: String = "info") = withContext(Dispatchers.Main) {
-        logAdapter.addEntry(message, level)
-        binding.rvLog.scrollToPosition(logAdapter.itemCount - 1)
+    private fun log(message: String, level: String = "info") {
+        runOnUiThread {
+            logAdapter.addEntry(message, level)
+            binding.rvLog.scrollToPosition(logAdapter.itemCount - 1)
+        }
     }
 
     private fun detectChip() {

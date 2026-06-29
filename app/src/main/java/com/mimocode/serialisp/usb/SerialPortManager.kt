@@ -31,7 +31,7 @@ class SerialPortManager(private val context: Context) {
     fun connect(device: UsbDevice, baudRate: Int, parity: Parity): Boolean {
         return try {
             val driver = UsbSerialProber.getDefaultProber().probeDevice(device)
-                ?: UsDeviceManager.getDriverForDevice(device).probeDevice(device)
+                ?: UsbDeviceManager.getDriverForDevice(device).probeDevice(device)
                 ?: return false
 
             val port = driver.ports[0]

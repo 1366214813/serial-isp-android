@@ -1,0 +1,22 @@
+[
+    {
+        "merged": "com.mimocode.serialisp.app-merged_res-33:/drawable_log_bg.xml.flat",
+        "source": "com.mimocode.serialisp.app-main-35:/drawable/log_bg.xml"
+    },
+    {
+        "merged": "com.mimocode.serialisp.app-merged_res-33:/layout_activity_main.xml.flat",
+        "source": "com.mimocode.serialisp.app-main-35:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.mimocode.serialisp.app-merged_res-33:/layout_item_log.xml.flat",
+        "source": "com.mimocode.serialisp.app-main-35:/layout/item_log.xml"
+    },
+    {
+        "merged": "com.mimocode.serialisp.app-merged_res-33:/drawable_spinner_bg.xml.flat",
+        "source": "com.mimocode.serialisp.app-main-35:/drawable/spinner_bg.xml"
+    },
+    {
+        "merged": "com.mimocode.serialisp.app-merged_res-33:/xml_device_filter.xml.flat",
+        "source": "com.mimocode.serialisp.app-main-35:/xml/device_filter.xml"
+    }
+]

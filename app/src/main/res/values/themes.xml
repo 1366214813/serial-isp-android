@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.SerialISP" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/material3_primary</item>
+        <item name="colorOnPrimary">@color/material3_onPrimary</item>
+        <item name="colorSurface">@color/material3_surface</item>
+        <item name="colorOnSurface">@color/material3_onSurface</item>
+        <item name="colorSurfaceVariant">@color/material3_surfaceVariant</item>
+        <item name="colorOnSurfaceVariant">@color/material3_onSurfaceVariant</item>
+        <item name="colorOutline">@color/material3_outline</item>
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+    </style>
+</resources>

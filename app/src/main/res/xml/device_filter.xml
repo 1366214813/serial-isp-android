@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- CH340/CH341 -->
+    <usb-device vendor-id="6790" product-id="29987"/>
+    <usb-device vendor-id="6790" product-id="29988"/>
+    <usb-device vendor-id="6790" product-id="29989"/>
+    <usb-device vendor-id="6790" product-id="29990"/>
+    <!-- CP2102/CP2104 -->
+    <usb-device vendor-id="4292" product-id="60000"/>
+    <usb-device vendor-id="4292" product-id="60016"/>
+    <!-- PL2303 -->
+    <usb-device vendor-id="1659" product-id="8963"/>
+    <usb-device vendor-id="1659" product-id="22288"/>
+    <!-- FTDI FT232R -->
+    <usb-device vendor-id="1027" product-id="24577"/>
+    <!-- STC-Link -->
+    <usb-device vendor-id="13783" product-id="1"/>
+    <!-- CDC ACM -->
+    <usb-device class="2" subclass="2"/>
+</resources>

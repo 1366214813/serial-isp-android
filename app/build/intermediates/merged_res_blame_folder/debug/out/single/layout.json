@@ -1,0 +1,10 @@
+[
+    {
+        "merged": "com.mimocode.serialisp.app-mergeDebugResources-32:/layout/activity_main.xml",
+        "source": "com.mimocode.serialisp.app-main-35:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.mimocode.serialisp.app-mergeDebugResources-32:/layout/item_log.xml",
+        "source": "com.mimocode.serialisp.app-main-35:/layout/item_log.xml"
+    }
+]

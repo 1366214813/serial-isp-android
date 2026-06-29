@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.mimocode.serialisp.app-mergeDebugResources-31:/values-hdpi-v4/values-hdpi-v4.xml",
+            "map": [
+                {
+                    "source": "/root/.gradle/caches/8.14.2/transforms/3994a05be7fc35c4b30801a3c712dfb0/transformed/appcompat-1.6.1/res/values-hdpi-v4/values-hdpi-v4.xml",
+                    "from": {
+                        "startLines": "2",
+                        "startColumns": "4",
+                        "startOffsets": "55",
+                        "endLines": "6",
+                        "endColumns": "13",
+                        "endOffsets": "327"
+                    }
+                }
+            ]
+        }
+    ]
+}

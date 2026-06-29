@@ -21,6 +21,8 @@ class SerialPortManager(private val context: Context) {
     private var connection: UsbDeviceConnection? = null
     private var inEndpoint: UsbEndpoint? = null
     private var outEndpoint: UsbEndpoint? = null
+    private var usbInterface: UsbInterface? = null
+    private var usbDevice: UsbDevice? = null
     private var readThread: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
@@ -71,6 +73,8 @@ class SerialPortManager(private val context: Context) {
             }
 
             connection = conn
+            this.usbDevice = device
+            this.usbInterface = usbInterface
             this.isConnected = true
             this.currentBaudRate = baudRate
             this.currentParity = parity
@@ -193,6 +197,46 @@ class SerialPortManager(private val context: Context) {
             } catch (e: Exception) {
                 e.printStackTrace()
             }
+        }
+    }
+
+    fun reconnect(baudRate: Int, parity: Parity) {
+        val device = usbDevice ?: return
+        val iface = usbInterface ?: return
+
+        // 停止读线程
+        readThread?.cancel()
+        readThread = null
+
+        // 关闭旧连接
+        try { connection?.close() } catch (e: Exception) { e.printStackTrace() }
+        connection = null
+        inEndpoint = null
+        outEndpoint = null
+
+        // 重新打开
+        try {
+            val conn = usbManager.openDevice(device) ?: return
+            if (!conn.claimInterface(iface, true)) {
+                conn.close()
+                return
+            }
+
+            for (i in 0 until iface.endpointCount) {
+                val ep = iface.getEndpoint(i)
+                if (ep.type == UsbConstants.USB_ENDPOINT_XFER_BULK) {
+                    if (ep.direction == UsbConstants.USB_DIR_IN) inEndpoint = ep
+                    else outEndpoint = ep
+                }
+            }
+
+            connection = conn
+            currentBaudRate = baudRate
+            currentParity = parity
+            setParameters(baudRate, parity)
+            startReading(conn)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 

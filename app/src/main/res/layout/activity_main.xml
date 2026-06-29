@@ -9,381 +9,170 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="16dp">
+        android:padding="12dp">
 
-        <!-- 标题 -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Multi-ISP 烧录工具"
-            android:textSize="22sp"
+            android:text="STC ISP 烧录工具"
+            android:textSize="20sp"
             android:textColor="@color/accent"
             android:textStyle="bold"
             android:gravity="center"
-            android:layout_marginBottom="4dp"/>
+            android:layout_marginBottom="8dp"/>
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="支持 STC / ESP32 / STM32 / GD32 / AT32 / CH559"
-            android:textSize="11sp"
-            android:textColor="@color/text_secondary"
-            android:gravity="center"
-            android:layout_marginBottom="12dp"/>
-
-        <!-- 连接卡片 -->
+        <!-- 连接 -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/border">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="连接"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp"/>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            app:cardCornerRadius="8dp" app:cardElevation="0dp"
+            app:strokeWidth="1dp" app:strokeColor="@color/border">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="10dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal">
-
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnConnect"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="连接串口"
-                        android:textSize="12sp"
-                        style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_marginEnd="4dp"/>
-
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="连接" android:textSize="12sp"
+                        style="@style/Widget.Material3.Button.TonalButton" android:layout_marginEnd="4dp"/>
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnDisconnect"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="断开"
-                        android:textSize="12sp"
+                        android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="断开" android:textSize="12sp"
                         android:enabled="false"
-                        style="@style/Widget.Material3.Button.TonalButton"
-                        android:layout_marginStart="4dp"/>
+                        style="@style/Widget.Material3.Button.TonalButton" android:layout_marginStart="4dp"/>
                 </LinearLayout>
-
-                <TextView
-                    android:id="@+id/tvConnStatus"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="未连接"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
-                    android:layout_marginTop="4dp"/>
+                <TextView android:id="@+id/tvConnStatus" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:text="未连接"
+                    android:textSize="11sp" android:textColor="@color/text_secondary"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- 设置卡片 -->
+        <!-- 设置 -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/border">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="设置"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp"/>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            app:cardCornerRadius="8dp" app:cardElevation="0dp"
+            app:strokeWidth="1dp" app:strokeColor="@color/border">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="10dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                     android:orientation="horizontal">
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:layout_marginEnd="8dp">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="波特率"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary"/>
-
-                        <Spinner
-                            android:id="@+id/spBaud"
-                            android:layout_width="match_parent"
-                            android:layout_height="40dp"
-                            android:entries="@array/baud_rates"
-                            android:background="@drawable/spinner_bg"
-                            android:paddingStart="8dp"
-                            android:paddingEnd="8dp"/>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:orientation="vertical" android:layout_marginEnd="8dp">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="波特率" android:textSize="11sp" android:textColor="@color/text_secondary"/>
+                        <Spinner android:id="@+id/spBaud" android:layout_width="match_parent"
+                            android:layout_height="36dp" android:entries="@array/baud_rates"
+                            android:background="@drawable/spinner_bg" android:paddingStart="6dp" android:paddingEnd="6dp"/>
                     </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:text="数据格式"
-                            android:textSize="11sp"
-                            android:textColor="@color/text_secondary"/>
-
-                        <Spinner
-                            android:id="@+id/spLineCoding"
-                            android:layout_width="match_parent"
-                            android:layout_height="40dp"
-                            android:entries="@array/line_coding"
-                            android:background="@drawable/spinner_bg"
-                            android:paddingStart="8dp"
-                            android:paddingEnd="8dp"/>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:orientation="vertical">
+                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:text="数据格式" android:textSize="11sp" android:textColor="@color/text_secondary"/>
+                        <Spinner android:id="@+id/spLineCoding" android:layout_width="match_parent"
+                            android:layout_height="36dp" android:entries="@array/line_coding"
+                            android:background="@drawable/spinner_bg" android:paddingStart="6dp" android:paddingEnd="6dp"/>
                     </LinearLayout>
                 </LinearLayout>
-
                 <com.google.android.material.switchmaterial.SwitchMaterial
                     android:id="@+id/swWireless"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="无线串口兼容模式"
-                    android:textSize="12sp"
-                    android:layout_marginTop="8dp"/>
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="无线串口模式" android:textSize="11sp" android:layout_marginTop="4dp"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- 芯片选择 -->
+        <!-- 文件 -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/border">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="芯片系列"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp"/>
-
-                <com.google.android.material.chip.ChipGroup
-                    android:id="@+id/chipGroup"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    app:singleSelection="true">
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipSTC"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="STC"
-                        android:checked="true"
-                        style="@style/Widget.Material3.Chip.Filter"/>
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipESP"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="ESP32"
-                        style="@style/Widget.Material3.Chip.Filter"/>
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipSTM32"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="STM32"
-                        style="@style/Widget.Material3.Chip.Filter"/>
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipGD32"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="GD32"
-                        style="@style/Widget.Material3.Chip.Filter"/>
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipAT32"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="AT32"
-                        style="@style/Widget.Material3.Chip.Filter"/>
-
-                    <com.google.android.material.chip.Chip
-                        android:id="@+id/chipCH559"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="CH559"
-                        style="@style/Widget.Material3.Chip.Filter"/>
-                </com.google.android.material.chip.ChipGroup>
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
-
-        <!-- 文件选择 -->
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/border">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="固件文件"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:layout_marginBottom="8dp"/>
-
+            android:layout_marginBottom="6dp"
+            app:cardCornerRadius="8dp" app:cardElevation="0dp"
+            app:strokeWidth="1dp" app:strokeColor="@color/border">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="10dp">
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnSelectFile"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="选择 HEX / BIN 文件"
-                    android:textSize="12sp"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="选择 HEX/BIN 文件" android:textSize="12sp"
                     style="@style/Widget.Material3.Button.OutlinedButton"/>
-
-                <TextView
-                    android:id="@+id/tvFileInfo"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
-                    android:visibility="gone"
-                    android:layout_marginTop="4dp"/>
+                <TextView android:id="@+id/tvFileInfo" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:textSize="11sp"
+                    android:textColor="@color/text_secondary" android:visibility="gone"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
         <!-- 操作按钮 -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="4dp">
-
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="horizontal" android:layout_marginBottom="4dp">
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnDetect"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="检测芯片"
-                android:textSize="12sp"
-                android:enabled="false"
-                style="@style/Widget.Material3.Button.TonalButton"
+                android:id="@+id/btnDetect" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="检测芯片" android:textSize="12sp"
+                android:enabled="false" style="@style/Widget.Material3.Button.TonalButton"
                 android:layout_marginEnd="4dp"/>
-
             <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnProgram"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="烧录"
-                android:textSize="12sp"
-                android:enabled="false"
-                style="@style/Widget.Material3.Button"
+                android:id="@+id/btnProgram" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_weight="1" android:text="烧录" android:textSize="12sp"
+                android:enabled="false" style="@style/Widget.Material3.Button"
                 android:layout_marginStart="4dp"/>
         </LinearLayout>
 
-        <!-- 进度条 -->
         <com.google.android.material.progressindicator.LinearProgressIndicator
-            android:id="@+id/progressBar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:visibility="gone"
-            app:trackThickness="6dp"
-            app:trackCornerRadius="3dp"/>
+            android:id="@+id/progressBar" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginBottom="6dp"
+            android:visibility="gone" app:trackThickness="6dp" app:trackCornerRadius="3dp"/>
 
-        <!-- 日志卡片 -->
+        <!-- 串口发送 -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cardCornerRadius="8dp"
-            app:cardElevation="0dp"
-            app:strokeWidth="1dp"
-            app:strokeColor="@color/border">
+            android:layout_marginBottom="6dp"
+            app:cardCornerRadius="8dp" app:cardElevation="0dp"
+            app:strokeWidth="1dp" app:strokeColor="@color/border">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:padding="8dp" android:gravity="center_vertical">
+                <EditText android:id="@+id/etSendData" android:layout_width="0dp"
+                    android:layout_height="36dp" android:layout_weight="1"
+                    android:hint="HEX: 7F" android:textSize="12sp" android:inputType="text"
+                    android:background="@drawable/spinner_bg" android:paddingStart="8dp"
+                    android:layout_marginEnd="8dp" android:singleLine="true"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSend" android:layout_width="wrap_content"
+                    android:layout_height="36dp" android:text="发送" android:textSize="11sp"
+                    style="@style/Widget.Material3.Button.TonalButton"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="12dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:layout_marginBottom="8dp">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="日志"
-                        android:textSize="13sp"
+        <!-- 日志 -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardCornerRadius="8dp" app:cardElevation="0dp"
+            app:strokeWidth="1dp" app:strokeColor="@color/border">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="vertical" android:padding="10dp">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="horizontal" android:gravity="center_vertical"
+                    android:layout_marginBottom="6dp">
+                    <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:text="日志/串口监视" android:textSize="13sp"
                         android:textStyle="bold"/>
-
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnClearLog"
-                        android:layout_width="wrap_content"
-                        android:layout_height="32dp"
-                        android:text="清空"
-                        android:textSize="10sp"
+                        android:id="@+id/btnMonitor" android:layout_width="wrap_content"
+                        android:layout_height="28dp" android:text="📡 监视" android:textSize="10sp"
+                        android:enabled="false" style="@style/Widget.Material3.Button.TonalButton"
+                        android:layout_marginEnd="4dp"/>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnClearLog" android:layout_width="wrap_content"
+                        android:layout_height="28dp" android:text="清空" android:textSize="10sp"
                         style="@style/Widget.Material3.Button.TextButton"/>
                 </LinearLayout>
-
                 <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rvLog"
-                    android:layout_width="match_parent"
-                    android:layout_height="300dp"
-                    android:background="@drawable/log_bg"
-                    android:padding="8dp"/>
+                    android:id="@+id/rvLog" android:layout_width="match_parent"
+                    android:layout_height="300dp" android:background="@drawable/log_bg" android:padding="8dp"/>
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 

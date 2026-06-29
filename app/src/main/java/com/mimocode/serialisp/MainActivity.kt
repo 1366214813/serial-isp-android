@@ -1,14 +1,8 @@
 package com.mimocode.serialisp
 
-import android.content.Intent
-import android.hardware.usb.UsbDevice
-import android.hardware.usb.UsbManager
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
-import android.widget.AdapterView
 import android.widget.Toast
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -20,6 +14,9 @@ import com.mimocode.serialisp.ui.LogAdapter
 import com.mimocode.serialisp.usb.Parity
 import com.mimocode.serialisp.usb.SerialPortManager
 import com.mimocode.serialisp.usb.UsbDeviceManager
+import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbManager
+import android.content.Intent
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -28,20 +25,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var serial: SerialPortManager
     private lateinit var logAdapter: LogAdapter
 
-    private var selectedChip: ChipType = ChipType.STC
-    private var currentProtocol: BaseProtocol? = null
     private var hexData: HexData? = null
     private var detectedChip: ChipInfo? = null
-
-    private val filePicker = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let { loadFile(it) }
-    }
+    private var isMonitorMode = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
         serial = SerialPortManager(this)
         setupUI()
         setupLog()
@@ -49,156 +40,43 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun setupUI() {
-        // 连接按钮
         binding.btnConnect.setOnClickListener { connectDevice() }
         binding.btnDisconnect.setOnClickListener { disconnectDevice() }
-
-        // 芯片选择
-        binding.chipGroup.setOnCheckedStateChangeListener { _, checkedIds ->
-            selectedChip = when {
-                checkedIds.contains(R.id.chipSTC) -> ChipType.STC
-                checkedIds.contains(R.id.chipESP) -> ChipType.ESP
-                checkedIds.contains(R.id.chipSTM32) -> ChipType.STM32
-                checkedIds.contains(R.id.chipGD32) -> ChipType.GD32
-                checkedIds.contains(R.id.chipAT32) -> ChipType.AT32
-                checkedIds.contains(R.id.chipCH559) -> ChipType.CH559
-                else -> ChipType.STC
-            }
-            log("已选择: ${selectedChip.displayName}", "step")
-        }
-
-        // 文件选择
-        binding.btnSelectFile.setOnClickListener {
-            filePicker.launch(arrayOf("application/octet-stream", "*/*"))
-        }
-
-        // 检测和烧录
+        binding.btnMonitor.setOnClickListener { toggleMonitor() }
         binding.btnDetect.setOnClickListener { detectChip() }
         binding.btnProgram.setOnClickListener { programChip() }
-
-        // 清空日志
         binding.btnClearLog.setOnClickListener { logAdapter.clear() }
+        binding.btnSelectFile.setOnClickListener {
+            val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
+            intent.addCategory(Intent.CATEGORY_OPENABLE)
+            intent.type = "*/*"
+            startActivityForResult(intent, 1001)
+        }
 
-        // 波特率变化
-        binding.spBaud.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                if (serial.isConnected) {
-                    val baud = parent?.getItemAtPosition(position).toString().toInt()
-                    serial.setParameters(baud, getParity())
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        binding.swWireless.setOnCheckedChangeListener { _, _ -> }
+
+        // 串口监视：发送按钮
+        binding.btnSend.setOnClickListener { sendHex() }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 1001 && resultCode == RESULT_OK) {
+            data?.data?.let { loadFile(it) }
         }
     }
 
-    private fun setupLog() {
-        logAdapter = LogAdapter()
-        binding.rvLog.layoutManager = LinearLayoutManager(this)
-        binding.rvLog.adapter = logAdapter
-    }
-
-    private fun showWelcome() {
-        val tips = listOf(
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
-            "Multi-ISP 烧录工具 v1.0 (Android)",
-            "",
-            "支持芯片:",
-            "· STC89/12/15/8/32 系列",
-            "· ESP32/ESP8266 系列",
-            "· STM32F0/H7 系列",
-            "· GD32F1/E5 系列",
-            "· AT32F4/34 系列",
-            "· CH559",
-            "",
-            "流程: 连接串口 → 选芯片 → 选文件 → 检测 → 烧录",
-            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        )
-        tips.forEach { log(it, "data") }
-    }
-
-    private fun connectDevice() {
-        val usbManager = getSystemService(USB_SERVICE) as UsbManager
-        val devices = UsbDeviceManager.findSupportedDevices(usbManager)
-
-        if (devices.isEmpty()) {
-            Toast.makeText(this, "未检测到 USB 串口设备", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        if (devices.size == 1) {
-            connectToDevice(devices[0])
-        } else {
-            // TODO: Show device picker dialog
-            Toast.makeText(this, "检测到 ${devices.size} 个设备，使用第一个", Toast.LENGTH_SHORT).show()
-            connectToDevice(devices[0])
-        }
-    }
-
-    private fun connectToDevice(device: UsbDevice) {
-        val deviceName = UsbDeviceManager.getDeviceName(device)
-        log("尝试连接: $deviceName", "step")
-
-        UsbDeviceManager.requestPermission(this, device,
-            onGranted = {
-                val baud = binding.spBaud.selectedItem.toString().toInt()
-                val parity = getParity()
-
-                if (serial.connect(device, baud, parity)) {
-                    log("已连接: $deviceName (${baud} ${getParityStr()})", "ok")
-                    binding.tvConnStatus.text = "已连接: $deviceName"
-                    binding.btnConnect.isEnabled = false
-                    binding.btnDisconnect.isEnabled = true
-                    binding.btnDetect.isEnabled = true
-
-                    // 启动接收数据监听
-                    startReceiveListener()
-                } else {
-                    log("连接失败: $deviceName", "err")
-                }
-            },
-            onDenied = {
-                log("用户拒绝 USB 权限", "err")
-            }
-        )
-    }
-
-    private fun startReceiveListener() {
-        lifecycleScope.launch {
-            for (data in serial.receivedData) {
-                currentProtocol?.onReceiveData(data)
-            }
-        }
-    }
-
-    private fun disconnectDevice() {
-        serial.disconnect()
-        currentProtocol = null
-        detectedChip = null
-
-        binding.tvConnStatus.text = "未连接"
-        binding.btnConnect.isEnabled = true
-        binding.btnDisconnect.isEnabled = false
-        binding.btnDetect.isEnabled = false
-        binding.btnProgram.isEnabled = false
-
-        log("已断开", "warn")
-    }
-
-    private fun loadFile(uri: Uri) {
+    private fun loadFile(uri: android.net.Uri) {
         try {
             val inputStream = contentResolver.openInputStream(uri) ?: return
             val bytes = inputStream.readBytes()
             inputStream.close()
-
             val fileName = uri.lastPathSegment ?: "unknown"
-
             hexData = if (fileName.endsWith(".hex", true)) {
-                val text = String(bytes)
-                HexParser.parseHex(text)
+                HexParser.parseHex(String(bytes))
             } else {
                 HexParser.parseBin(bytes)
             }
-
             log("载入: $fileName (${hexData?.size}B)", "ok")
             binding.tvFileInfo.text = "已载入: $fileName (${hexData?.size}B)"
             binding.tvFileInfo.visibility = View.VISIBLE
@@ -209,96 +87,144 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun createProtocolListener(): ProtocolListener {
-        return object : ProtocolListener {
-            override fun onLog(message: String, level: String) {
-                lifecycleScope.launch {
-                    log(message, level)
+    private fun connectDevice() {
+        val usbManager = getSystemService(USB_SERVICE) as UsbManager
+        val devices = UsbDeviceManager.findSupportedDevices(usbManager)
+        if (devices.isEmpty()) {
+            Toast.makeText(this, "未检测到 USB 设备", Toast.LENGTH_SHORT).show()
+            return
+        }
+        connectToDevice(devices[0])
+    }
+
+    private fun connectToDevice(device: UsbDevice) {
+        val deviceName = UsbDeviceManager.getDeviceName(device)
+        log("连接: $deviceName", "step")
+
+        UsbDeviceManager.requestPermission(this, device,
+            onGranted = {
+                val baud = binding.spBaud.selectedItem.toString().toInt()
+                val parity = getParity()
+                if (serial.connect(device, baud, parity)) {
+                    log("已连接: $deviceName (${baud} ${getParityStr()})", "ok")
+                    binding.tvConnStatus.text = "已连接: $deviceName"
+                    binding.btnConnect.isEnabled = false
+                    binding.btnDisconnect.isEnabled = true
+                    binding.btnMonitor.isEnabled = true
+                    binding.btnDetect.isEnabled = true
+                    startReceiveListener()
+                } else {
+                    log("连接失败", "err")
                 }
-            }
-            override fun onProgress(percent: Int) {
-                lifecycleScope.launch {
-                    binding.progressBar.progress = percent
+            },
+            onDenied = { log("拒绝 USB 权限", "err") }
+        )
+    }
+
+    private fun startReceiveListener() {
+        lifecycleScope.launch {
+            for (data in serial.receivedData) {
+                if (isMonitorMode) {
+                    val hex = data.joinToString(" ") { "%02X".format(it) }
+                    log("RX: $hex", "rx")
                 }
             }
         }
     }
 
-    private fun log(message: String, level: String = "info") {
-        runOnUiThread {
-            logAdapter.addEntry(message, level)
-            binding.rvLog.scrollToPosition(logAdapter.itemCount - 1)
+    private fun disconnectDevice() {
+        serial.disconnect()
+        isMonitorMode = false
+        binding.tvConnStatus.text = "未连接"
+        binding.btnConnect.isEnabled = true
+        binding.btnDisconnect.isEnabled = false
+        binding.btnMonitor.isEnabled = false
+        binding.btnMonitor.text = "📡 监视"
+        binding.btnDetect.isEnabled = false
+        binding.btnProgram.isEnabled = false
+        log("已断开", "warn")
+    }
+
+    private fun toggleMonitor() {
+        isMonitorMode = !isMonitorMode
+        binding.btnMonitor.text = if (isMonitorMode) "📡 监视 ON" else "📡 监视"
+        log(if (isMonitorMode) "监视开启 - 显示所有串口数据" else "监视关闭", "step")
+    }
+
+    private fun sendHex() {
+        val hex = binding.etSendData.text.toString().trim()
+        if (hex.isEmpty()) {
+            Toast.makeText(this, "请输入HEX数据", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
+            serial.write(bytes)
+            val sent = bytes.joinToString(" ") { "%02X".format(it) }
+            log("TX: $sent", "tx")
+            binding.etSendData.setText("")
+        } catch (e: Exception) {
+            log("发送失败: ${e.message}", "err")
         }
     }
 
     private fun detectChip() {
-        if (!serial.isConnected) {
-            log("请先连接串口", "err")
-            return
-        }
-
+        if (!serial.isConnected) { log("请先连接串口", "err"); return }
         binding.btnDetect.isEnabled = false
         binding.btnProgram.isEnabled = false
 
         lifecycleScope.launch {
             try {
-                val protocol = ProtocolManager.createProtocol(selectedChip, serial, createProtocolListener())
-                currentProtocol = protocol
-
-                log("检测 ${protocol.name}...", "step")
+                val protocol = StcProtocol(serial, object : ProtocolListener {
+                    override fun onLog(message: String, level: String) {
+                        log(message, level)
+                    }
+                    override fun onProgress(percent: Int) {
+                        runOnUiThread { binding.progressBar.progress = percent }
+                    }
+                })
+                log("检测 STC 芯片...", "step")
                 val syncResult = protocol.sync()
                 if (syncResult != null) {
                     detectedChip = protocol.detect(syncResult)
                     log("检测完成: ${detectedChip?.name}", "ok")
-                    binding.btnDetect.isEnabled = true
                     binding.btnProgram.isEnabled = hexData != null
                 } else {
-                    log("同步失败", "err")
-                    binding.btnDetect.isEnabled = true
+                    log("同步失败 - 请查看串口数据调试", "err")
                 }
             } catch (e: Exception) {
                 log("检测失败: ${e.message}", "err")
-                binding.btnDetect.isEnabled = true
             }
+            binding.btnDetect.isEnabled = true
         }
     }
 
     private fun programChip() {
-        if (!serial.isConnected) {
-            log("请先连接串口", "err")
-            return
-        }
-        if (hexData == null) {
-            log("请选择固件文件", "err")
-            return
-        }
+        if (!serial.isConnected) { log("请先连接串口", "err"); return }
+        if (hexData == null) { log("请选择固件文件", "err"); return }
 
         binding.btnDetect.isEnabled = false
         binding.btnProgram.isEnabled = false
         binding.progressBar.visibility = View.VISIBLE
         binding.progressBar.progress = 0
+        isMonitorMode = false
 
         lifecycleScope.launch {
             try {
-                val protocol = currentProtocol ?: ProtocolManager.createProtocol(selectedChip, serial, createProtocolListener())
-                currentProtocol = protocol
-
-                if (selectedChip == ChipType.STC || selectedChip == ChipType.CH559) {
-                    log("开始烧录 [${protocol.name}]...", "step")
-                    val syncResult = protocol.sync()
-                    if (syncResult != null) {
-                        protocol.detect(syncResult)
-                        protocol.program(hexData!!)
-                    } else {
-                        throw IllegalStateException("同步失败")
+                val protocol = StcProtocol(serial, object : ProtocolListener {
+                    override fun onLog(message: String, level: String) {
+                        log(message, level)
                     }
-                } else if (selectedChip == ChipType.ESP) {
-                    log("开始烧录 [${protocol.name}]...", "step")
-                    protocol.sync()
+                    override fun onProgress(percent: Int) {
+                        runOnUiThread { binding.progressBar.progress = percent }
+                    }
+                })
+                val syncResult = protocol.sync()
+                if (syncResult != null) {
+                    protocol.detect(syncResult)
                     protocol.program(hexData!!)
                 } else {
-                    log("开始烧录 [${protocol.name}]...", "step")
-                    protocol.program(hexData!!)
+                    log("同步失败", "err")
                 }
             } catch (e: Exception) {
                 log("烧录失败: ${e.message}", "err")
@@ -311,11 +237,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun getParity(): Parity {
-        val text = binding.spLineCoding.selectedItem.toString()
-        return when {
-            text.contains("8E1") -> Parity.EVEN
-            text.contains("8O1") -> Parity.ODD
-            else -> Parity.NONE
+        return when (binding.spLineCoding.selectedItemPosition) {
+            0 -> Parity.EVEN
+            1 -> Parity.NONE
+            else -> Parity.EVEN
         }
     }
 
@@ -325,6 +250,35 @@ class MainActivity : AppCompatActivity() {
             Parity.ODD -> "8O1"
             Parity.NONE -> "8N1"
         }
+    }
+
+    private fun log(message: String, level: String = "info") {
+        runOnUiThread {
+            logAdapter.addEntry(message, level)
+            binding.rvLog.scrollToPosition(logAdapter.itemCount - 1)
+        }
+    }
+
+    private fun setupLog() {
+        logAdapter = LogAdapter()
+        binding.rvLog.layoutManager = LinearLayoutManager(this)
+        binding.rvLog.adapter = logAdapter
+    }
+
+    private fun showWelcome() {
+        listOf(
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━",
+            "STC ISP 烧录工具 v2.0",
+            "",
+            "使用步骤:",
+            "1. 连接串口 (2400+8N1)",
+            "2. 选文件",
+            "3. 点「检测芯片」时给目标板上电",
+            "4. 烧录",
+            "",
+            "调试: 开启「监视」可查看串口数据",
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        ).forEach { log(it, "data") }
     }
 
     override fun onDestroy() {

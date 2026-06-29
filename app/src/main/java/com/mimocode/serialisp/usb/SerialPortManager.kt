@@ -1,13 +1,15 @@
 package com.mimocode.serialisp.usb
 
-import android.content.Context
+import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
+import android.hardware.usb.UsbDeviceConnection
+import android.hardware.usb.UsbEndpoint
+import android.hardware.usb.UsbInterface
 import android.hardware.usb.UsbManager
-import com.hoho.android.usbserial.driver.*
-import com.hoho.android.usbserial.util.SerialInputOutputManager
+import android.content.Context
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import java.io.IOException
+import java.util.concurrent.ConcurrentLinkedQueue
 
 enum class Parity(val value: Int) {
     NONE(0), EVEN(1), ODD(2)
@@ -16,84 +18,202 @@ enum class Parity(val value: Int) {
 class SerialPortManager(private val context: Context) {
 
     private var usbManager: UsbManager = context.getSystemService(Context.USB_SERVICE) as UsbManager
-    private var serialDriver: UsbSerialDriver? = null
-    private var port: UsbSerialPort? = null
-    private var ioManager: SerialInputOutputManager? = null
-
-    private val rxChannel = Channel<ByteArray>(Channel.UNLIMITED)
+    private var connection: UsbDeviceConnection? = null
+    private var inEndpoint: UsbEndpoint? = null
+    private var outEndpoint: UsbEndpoint? = null
+    private var readThread: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     var isConnected = false
         private set
 
+    private val rxChannel = Channel<ByteArray>(Channel.UNLIMITED)
     val receivedData: Channel<ByteArray> get() = rxChannel
 
+    private var currentBaudRate = 115200
+    private var currentParity = Parity.EVEN
+
+    companion object {
+        private const val CH34X_REQ_WRITE_REG = 0x9A
+        private const val CH34X_REQ_READ_REG = 0x95
+        private const val CH34X_REG_MODEM = 0xA4
+        private const val CH34X_BIT_DTR = 0x20
+        private const val CH34X_BIT_RTS = 0x40
+    }
+
     fun connect(device: UsbDevice, baudRate: Int, parity: Parity): Boolean {
-        return try {
-            val driver = UsbSerialProber.getDefaultProber().probeDevice(device)
-                ?: UsbDeviceManager.getDriverForDevice(device).probeDevice(device)
-                ?: return false
+        try {
+            val usbInterface = findCdcInterface(device)
+                ?: device.getInterface(0)
 
-            val port = driver.ports[0]
-            val connection = usbManager.openDevice(device) ?: return false
+            val conn = usbManager.openDevice(device) ?: return false
 
-            port.open(connection)
-            port.setParameters(baudRate, 8, parity.value, 1)
+            if (!conn.claimInterface(usbInterface, true)) {
+                conn.close()
+                return false
+            }
 
-            this.serialDriver = driver
-            this.port = port
+            // Find bulk endpoints
+            for (i in 0 until usbInterface.endpointCount) {
+                val ep = usbInterface.getEndpoint(i)
+                if (ep.type == UsbConstants.USB_ENDPOINT_XFER_BULK) {
+                    if (ep.direction == UsbConstants.USB_DIR_IN) {
+                        inEndpoint = ep
+                    } else {
+                        outEndpoint = ep
+                    }
+                }
+            }
+
+            if (inEndpoint == null || outEndpoint == null) {
+                conn.close()
+                return false
+            }
+
+            connection = conn
             this.isConnected = true
+            this.currentBaudRate = baudRate
+            this.currentParity = parity
 
-            startReading()
-            true
+            initCh340(conn, device)
+            setParameters(baudRate, parity)
+            startReading(conn)
+
+            return true
         } catch (e: Exception) {
             e.printStackTrace()
-            false
+            return false
         }
     }
 
-    private fun startReading() {
-        ioManager = SerialInputOutputManager(port, object : SerialInputOutputManager.Listener {
-            override fun onNewData(data: ByteArray) {
-                scope.launch { rxChannel.send(data) }
+    private fun findCdcInterface(device: UsbDevice): UsbInterface? {
+        for (i in 0 until device.interfaceCount) {
+            val iface = device.getInterface(i)
+            if (iface.interfaceClass == UsbConstants.USB_CLASS_CDC_DATA) {
+                return iface
             }
-            override fun onRunError(e: Exception?) {
-                e?.printStackTrace()
+        }
+        return null
+    }
+
+    private fun initCh340(conn: UsbDeviceConnection, device: UsbDevice) {
+        // CH340 initialization sequence (from linux ch341 driver)
+        controlOut(conn, 0x9A, 0x0706, 0x0007)
+        controlOut(conn, 0x9A, 0x0706, 0x0007)
+        controlOut(conn, 0x9A, 0x0706, 0x0007)
+        controlOut(conn, 0x9A, 0x0706, 0x0007)
+        controlOut(conn, 0x9A, 0x0706, 0x0007)
+        controlOut(conn, 0x9A, 0x0706, 0x0007)
+        controlOut(conn, 0x9A, 0x0706, 0x0007)
+        controlOut(conn, 0x9A, 0x0706, 0x0009)
+        controlOut(conn, 0x9A, 0x0706, 0x0008)
+    }
+
+    fun setParameters(baudRate: Int, parity: Parity) {
+        val conn = connection ?: return
+        currentBaudRate = baudRate
+        currentParity = parity
+
+        try {
+            setBaudRate(conn, baudRate)
+            setLineControl(conn, parity)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun setBaudRate(conn: UsbDeviceConnection, baudRate: Int) {
+        val divisor = getBaudRateDivisor(baudRate)
+        if (divisor < 0) return
+
+        if (divisor == 0) {
+            controlOut(conn, CH34X_REQ_WRITE_REG, 0x1312, 0xD982)
+            controlOut(conn, CH34X_REQ_WRITE_REG, 0x0F2C, 0x0004)
+            controlOut(conn, CH34X_REQ_WRITE_REG, 0x2727, 0x0000)
+        } else {
+            val factor = divisor and 0xFF
+            controlOut(conn, CH34X_REQ_WRITE_REG, 0x1312, 0xD982)
+            controlOut(conn, CH34X_REQ_WRITE_REG, 0x0F2C, 0x0004)
+            controlOut(conn, CH34X_REQ_WRITE_REG, 0x2727, 0x0000)
+            controlOut(conn, CH34X_REQ_WRITE_REG, 0x1312, 0x9488 or ((factor and 0xFF) shl 8))
+        }
+    }
+
+    private fun getBaudRateDivisor(baudRate: Int): Int {
+        return when (baudRate) {
+            50 -> 0; 75 -> 1; 100 -> 2; 150 -> 3
+            300 -> 4; 600 -> 5; 1200 -> 6; 2400 -> 7
+            4800 -> 8; 9600 -> 9; 19200 -> 10; 38400 -> 11
+            57600 -> 12; 115200 -> 13; 230400 -> 14; 460800 -> 15
+            500000 -> 16; 576000 -> 17; 921600 -> 18; 1000000 -> 19
+            else -> -1
+        }
+    }
+
+    private fun setLineControl(conn: UsbDeviceConnection, parity: Parity) {
+        var lcr = 0x03 // 8 data bits
+        when (parity) {
+            Parity.EVEN -> lcr = lcr or 0x18
+            Parity.ODD -> lcr = lcr or 0x08
+            Parity.NONE -> {}
+        }
+        lcr = lcr or 0xC0
+        controlOut(conn, CH34X_REQ_WRITE_REG, 0x0706, lcr)
+    }
+
+    private fun startReading(conn: UsbDeviceConnection) {
+        readThread = scope.launch {
+            val buffer = ByteArray(4096)
+            while (isActive && isConnected) {
+                val ep = inEndpoint ?: break
+                val result = conn.bulkTransfer(ep, buffer, buffer.size, 100)
+                if (result > 0) {
+                    val data = ByteArray(result)
+                    System.arraycopy(buffer, 0, data, 0, result)
+                    rxChannel.send(data)
+                }
             }
-        }).also { it.start() }
+        }
     }
 
     fun write(data: ByteArray) {
+        val conn = connection ?: return
+        val ep = outEndpoint ?: return
+
         scope.launch {
             try {
-                port?.write(data, 1000)
-            } catch (e: IOException) {
+                var offset = 0
+                while (offset < data.size) {
+                    val chunkSize = minOf(data.size - offset, ep.maxPacketSize)
+                    val chunk = data.copyOfRange(offset, offset + chunkSize)
+                    val result = conn.bulkTransfer(ep, chunk, chunk.size, 1000)
+                    if (result < 0) break
+                    offset += result
+                }
+            } catch (e: Exception) {
                 e.printStackTrace()
             }
         }
     }
 
-    fun setParameters(baudRate: Int, parity: Parity) {
-        try {
-            port?.setParameters(baudRate, 8, parity.value, 1)
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
     fun disconnect() {
-        ioManager?.stop()
-        ioManager = null
+        isConnected = false
+        readThread?.cancel()
+        readThread = null
         try {
-            port?.close()
+            connection?.close()
         } catch (e: Exception) {
             e.printStackTrace()
         }
-        port = null
-        serialDriver = null
-        isConnected = false
+        connection = null
+        inEndpoint = null
+        outEndpoint = null
         scope.cancel()
     }
+
+    private fun controlOut(conn: UsbDeviceConnection, request: Int, value: Int, index: Int): Int {
+        return conn.controlTransfer(
+            0x40, request, value, index, null, 0, 1000
+        )
+    }
 }
-
-

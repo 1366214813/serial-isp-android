@@ -8,7 +8,6 @@ import android.content.IntentFilter
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
-import com.hoho.android.usbserial.driver.UsbSerialProber
 
 object UsbDeviceManager {
 
@@ -19,10 +18,6 @@ object UsbDeviceManager {
     private val PL2303_VIDS = intArrayOf(0x067B)
     private val FTDI_VIDS = intArrayOf(0x0403)
     private val STC_VIDS = intArrayOf(0x34BF)
-
-    fun getDriverForDevice(@Suppress("UNUSED_PARAMETER") device: UsbDevice): UsbSerialProber {
-        return UsbSerialProber.getDefaultProber()
-    }
 
     fun getDeviceName(device: UsbDevice): String {
         return when {

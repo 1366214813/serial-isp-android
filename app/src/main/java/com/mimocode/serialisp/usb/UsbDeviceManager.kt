@@ -8,9 +8,6 @@ import android.content.IntentFilter
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbManager
 import android.os.Build
-import com.hoho.android.usbserial.driver.Ch340SerialProber
-import com.hoho.android.usbserial.driver.Cp21xxSerialProber
-import com.hoho.android.usbserial.driver.ProbeTable
 import com.hoho.android.usbserial.driver.UsbSerialProber
 
 object UsbDeviceManager {
@@ -23,18 +20,8 @@ object UsbDeviceManager {
     private val FTDI_VIDS = intArrayOf(0x0403)
     private val STC_VIDS = intArrayOf(0x34BF)
 
-    fun getDriverForDevice(device: UsbDevice): UsbSerialProber {
-        val probeTable = ProbeTable()
-        probeTable.addProduct(0x1A86, 0x7523, Ch340SerialProber::class.java)
-        probeTable.addProduct(0x1A86, 0x5523, Ch340SerialProber::class.java)
-        probeTable.addProduct(0x10C4, 0xEA60, Cp21xxSerialProber::class.java)
-        probeTable.addProduct(0x10C4, 0xEA70, Cp21xxSerialProber::class.java)
-
-        return when {
-            CH340_VIDS.contains(device.vendorId) -> Ch340SerialProber.getProbeInstance()
-            CP210X_VIDS.contains(device.vendorId) -> Cp21xxSerialProber.getProbeInstance()
-            else -> UsbSerialProber.getDefaultProber()
-        }
+    fun getDriverForDevice(@Suppress("UNUSED_PARAMETER") device: UsbDevice): UsbSerialProber {
+        return UsbSerialProber.getDefaultProber()
     }
 
     fun getDeviceName(device: UsbDevice): String {

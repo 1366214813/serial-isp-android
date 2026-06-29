@@ -21,7 +21,11 @@ abstract class BaseProtocol(protected val serial: SerialPortManager, protected v
     abstract suspend fun detect(syncResult: SyncResult): ChipInfo?
     abstract suspend fun program(hexData: HexData)
 
+    @Volatile
     protected var rxBuf = ByteArray(0)
+
+    @Volatile
+    protected var rxBufLen = 0
 
     protected fun log(msg: String, level: String = "info") {
         listener.onLog(msg, level)
@@ -31,12 +35,38 @@ abstract class BaseProtocol(protected val serial: SerialPortManager, protected v
         listener.onProgress(percent)
     }
 
+    @Synchronized
+    protected fun appendRx(data: ByteArray) {
+        val tmp = ByteArray(rxBufLen + data.size)
+        System.arraycopy(rxBuf, 0, tmp, 0, rxBufLen)
+        System.arraycopy(data, 0, tmp, rxBufLen, data.size)
+        rxBuf = tmp
+        rxBufLen = tmp.size
+    }
+
+    @Synchronized
+    protected fun consumeBytes(count: Int) {
+        if (count >= rxBufLen) {
+            rxBuf = ByteArray(0)
+            rxBufLen = 0
+        } else {
+            val remaining = rxBufLen - count
+            val tmp = ByteArray(remaining)
+            System.arraycopy(rxBuf, count, tmp, 0, remaining)
+            rxBuf = tmp
+            rxBufLen = remaining
+        }
+    }
+
     protected suspend fun waitPacket(timeoutMs: Long): Packet? {
         val start = System.currentTimeMillis()
         while (System.currentTimeMillis() - start < timeoutMs) {
-            val pkt = parsePacket(rxBuf)
-            if (pkt != null) return pkt
-            delay(10)
+            val pkt = synchronized(this) { parsePacket(rxBuf) }
+            if (pkt != null) {
+                synchronized(this) { consumeBytes(pkt.rawLen) }
+                return pkt
+            }
+            delay(5)
         }
         return null
     }
@@ -44,18 +74,16 @@ abstract class BaseProtocol(protected val serial: SerialPortManager, protected v
     protected suspend fun waitRawByte(timeoutMs: Long): Int {
         val start = System.currentTimeMillis()
         while (System.currentTimeMillis() - start < timeoutMs) {
-            if (rxBuf.isNotEmpty()) {
-                val b = rxBuf[0].toInt() and 0xFF
-                rxBuf = if (rxBuf.size > 1) rxBuf.copyOfRange(1, rxBuf.size) else ByteArray(0)
-                return b
+            synchronized(this) {
+                if (rxBufLen > 0) {
+                    val b = rxBuf[0].toInt() and 0xFF
+                    consumeBytes(1)
+                    return b
+                }
             }
             delay(5)
         }
         return -1
-    }
-
-    protected fun appendRx(data: ByteArray) {
-        rxBuf += data
     }
 
     fun onReceiveData(data: ByteArray) {
@@ -63,9 +91,9 @@ abstract class BaseProtocol(protected val serial: SerialPortManager, protected v
     }
 
     protected fun parsePacket(buf: ByteArray): Packet? {
+        if (buf.size < 5) return null
         for (i in 0 until buf.size - 4) {
             if (buf[i].toInt() and 0xFF != 0xB9) continue
-            if (i > 0 && buf[i - 1].toInt() and 0xFF == 0x00) continue
             val off = i + 1
             if (off + 2 > buf.size) continue
             val dir = buf[off].toInt() and 0xFF
@@ -85,7 +113,7 @@ abstract class BaseProtocol(protected val serial: SerialPortManager, protected v
             for (b in pay) cs += b.toInt() and 0xFF
             if (buf[end - 3].toInt() and 0xFF != (cs shr 8 and 0xFF)) continue
             if (buf[end - 2].toInt() and 0xFF != (cs and 0xFF)) continue
-            return Packet(dir, len, pay, pay.size + 9)
+            return Packet(dir, len, pay, end - i)
         }
         return null
     }
@@ -102,5 +130,10 @@ abstract class BaseProtocol(protected val serial: SerialPortManager, protected v
         pkt[6 + payload.size] = (cs and 0xFF).toByte()
         pkt[7 + payload.size] = 0x16
         return pkt
+    }
+
+    protected fun hexDump(buf: ByteArray, max: Int = 32): String {
+        val n = minOf(buf.size, max)
+        return buf.take(n).joinToString(" ") { "%02X".format(it) } + if (buf.size > max) "..." else ""
     }
 }

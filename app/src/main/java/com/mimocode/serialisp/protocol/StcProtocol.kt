@@ -21,35 +21,54 @@ class StcProtocol(serial: SerialPortManager, listener: ProtocolListener) : BaseP
 
     override suspend fun sync(): SyncResult? {
         log("=== STC ISP 同步 ===", "step")
-        log("请确保目标板已上电，必要时断电再上电触发 ISP", "warn")
-        rxBuf = ByteArray(0)
+        log("请在同步期间给目标板上电 (断电→上电)", "warn")
+        synchronized(this) { rxBuf = ByteArray(0); rxBufLen = 0 }
 
-        for (pulse in 0 until 10000) {
+        val startTime = System.currentTimeMillis()
+        val timeoutMs = 15000L
+        var lastLogTime = 0L
+
+        while (System.currentTimeMillis() - startTime < timeoutMs) {
             serial.write(byteArrayOf(0x7F))
-            delay(1)
+            delay(10)
 
-            while (rxBuf.isNotEmpty()) {
+            synchronized(this) {
+                if (rxBufLen > 0) {
+                    val dump = hexDump(rxBuf)
+                    log("RX [$rxBufLen]: $dump", "data")
+                }
+
                 val pkt = parsePacket(rxBuf)
                 if (pkt != null) {
-                    if (pkt.payload[0].toInt() and 0xFF == 0x50) {
-                        log("ISP 同步成功! (脉冲: $pulse)", "ok")
+                    consumeBytes(pkt.rawLen)
+                    if (pkt.payload.isNotEmpty() && pkt.payload[0].toInt() and 0xFF == 0x50) {
+                        val elapsed = System.currentTimeMillis() - startTime
+                        log("ISP 同步成功! (${elapsed}ms)", "ok")
                         statusPkt = pkt
                         return SyncResult()
                     }
+                    log("收到包: dir=0x${pkt.dir.toString(16)} payload[0]=0x${if(pkt.payload.isNotEmpty()) (pkt.payload[0].toInt() and 0xFF).toString(16) else "?"}", "data")
+                } else if (rxBufLen > 0) {
+                    consumeBytes(rxBufLen)
                 }
             }
-            if (pulse % 1000 == 0 && pulse > 0) {
-                log("已发送 $pulse 次脉冲...", "warn")
+
+            val now = System.currentTimeMillis()
+            if (now - lastLogTime > 2000) {
+                val elapsed = ((now - startTime) / 1000).toInt()
+                log("同步中... ${elapsed}s / ${(timeoutMs / 1000).toInt()}s", "warn")
+                lastLogTime = now
             }
         }
-        log("STC ISP 同步失败", "err")
+        log("STC ISP 同步超时 (${(timeoutMs / 1000).toInt()}s)", "err")
+        log("请检查: 1) CH340 TX→RX交叉连接 2) 波特率115200+8E1 3) 目标板在同步期间上电", "warn")
         return null
     }
 
     override suspend fun detect(syncResult: SyncResult): ChipInfo? {
         val pkt = statusPkt ?: return null
         if (pkt.payload.size < 22) {
-            log("数据包过短", "err")
+            log("数据包过短: ${pkt.payload.size}B", "err")
             return null
         }
 
@@ -73,29 +92,25 @@ class StcProtocol(serial: SerialPortManager, listener: ProtocolListener) : BaseP
         log("共 ${blks.size} 块, 有效 ${hexData.written.size}B", "ok")
 
         val arg = if (pkt.payload.size > 4) pkt.payload[4].toInt() and 0xFF else 0x00
-        val baud = 115200 // TODO: get from settings
+        val baud = 115200
 
-        // Step 1: 设置参数
         log("[1/5] 设置参数...", "step")
         val RL = 65536 - Math.round(24000000.0 / (baud * 4)).toInt()
-        rxBuf = ByteArray(0)
-        val setParamPkt = buildPkt(0x6A, byteArrayOf(
+        synchronized(this) { rxBuf = ByteArray(0); rxBufLen = 0 }
+        serial.write(buildPkt(0x6A, byteArrayOf(
             0x01, arg.toByte(), 0x40, ((RL shr 8) and 0xFF).toByte(), (RL and 0xFF).toByte(), 0, 0, 0xC3.toByte()
-        ))
-        serial.write(setParamPkt)
+        )))
         val rp = waitPacket(500)
         if (rp == null || rp.payload[0].toInt() and 0xFF != 0x01) {
             throw IllegalStateException("设置参数失败")
         }
         log("参数设置 OK", "ok")
 
-        // 切换波特率
         serial.setParameters(baud, com.mimocode.serialisp.usb.Parity.EVEN)
         setProgress(15)
 
-        // Step 2: 准备编程
         log("[2/5] 准备编程...", "step")
-        rxBuf = ByteArray(0)
+        synchronized(this) { rxBuf = ByteArray(0); rxBufLen = 0 }
         serial.write(buildPkt(0x6A, byteArrayOf(0x05, 0, 0, 0x5A, 0xA5.toByte())))
         val rp2 = waitPacket(300)
         if (rp2 == null || rp2.payload[0].toInt() and 0xFF != 0x05) {
@@ -104,9 +119,8 @@ class StcProtocol(serial: SerialPortManager, listener: ProtocolListener) : BaseP
         log("准备编程 OK", "ok")
         setProgress(25)
 
-        // Step 3: 擦除
         log("[3/5] 擦除 Flash...", "step")
-        rxBuf = ByteArray(0)
+        synchronized(this) { rxBuf = ByteArray(0); rxBufLen = 0 }
         serial.write(buildPkt(0x6A, byteArrayOf(0x03, 0, 0, 0x5A, 0xA5.toByte())))
         val rp3 = waitPacket(3000)
         if (rp3 == null || rp3.payload[0].toInt() and 0xFF != 0x03) {
@@ -115,7 +129,6 @@ class StcProtocol(serial: SerialPortManager, listener: ProtocolListener) : BaseP
         log("擦除 OK", "ok")
         setProgress(35)
 
-        // Step 4: 写入
         log("[4/5] 写入代码...", "step")
         for (bi in blks.indices) {
             val i = blks[bi]
@@ -133,7 +146,7 @@ class StcProtocol(serial: SerialPortManager, listener: ProtocolListener) : BaseP
             p[3] = 0x5A; p[4] = 0xA5.toByte()
             b.copyInto(p, 5)
 
-            rxBuf = ByteArray(0)
+            synchronized(this) { rxBuf = ByteArray(0); rxBufLen = 0 }
             serial.write(buildPkt(0x6A, p))
             val rp4 = waitPacket(3000)
             if (rp4 == null || rp4.payload[0].toInt() and 0xFF != 0x02 || rp4.payload[1].toInt() and 0xFF != 0x54) {
@@ -146,9 +159,8 @@ class StcProtocol(serial: SerialPortManager, listener: ProtocolListener) : BaseP
         }
         log("写入完成", "ok")
 
-        // Step 5: 复位
         log("[5/5] 复位芯片...", "step")
-        rxBuf = ByteArray(0)
+        synchronized(this) { rxBuf = ByteArray(0); rxBufLen = 0 }
         serial.write(buildPkt(0x6A, byteArrayOf(0x82.toByte())))
         setProgress(100)
         log("STC 烧录完成!", "ok")

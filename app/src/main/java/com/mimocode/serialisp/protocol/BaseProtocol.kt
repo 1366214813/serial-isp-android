@@ -58,6 +58,12 @@ abstract class BaseProtocol(protected val serial: SerialPortManager, protected v
         }
     }
 
+    @Synchronized
+    protected fun clearRxBuf() {
+        rxBuf = ByteArray(0)
+        rxBufLen = 0
+    }
+
     protected suspend fun waitPacket(timeoutMs: Long): Packet? {
         val start = System.currentTimeMillis()
         while (System.currentTimeMillis() - start < timeoutMs) {

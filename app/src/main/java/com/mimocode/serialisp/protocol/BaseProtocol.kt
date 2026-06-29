@@ -31,7 +31,7 @@ abstract class BaseProtocol(protected val serial: SerialPortManager, protected v
     protected suspend fun waitPacket(timeoutMs: Long): Packet? {
         val start = System.currentTimeMillis()
         while (System.currentTimeMillis() - start < timeoutMs) {
-            val pkt = parsePacket(rxBuf)
+            val pkt = Companion.parsePacket(rxBuf)
             if (pkt != null) return pkt
             kotlinx.coroutines.delay(10)
         }
